@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: chatapp-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: chatapp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+
+  # Kafka Message Queue
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: chatapp-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: chatapp-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+
+  # Backend Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: chatapp-server
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/chatapp
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKER=kafka:29092
+      - JWT_SECRET=chatapp-secret-key-2024
+      - CLIENT_URL=http://localhost:3000
+    depends_on:
+      - mongodb
+      - redis
+      - kafka
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+
+  # Frontend Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: chatapp-client
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+      - REACT_APP_WS_URL=http://localhost:5000
+    depends_on:
+      - server
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+
+  # Kafka UI for monitoring
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: chatapp-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  redis_data:
+  kafka_data:
+
+networks:
+  chatapp-network:
+    driver: bridge

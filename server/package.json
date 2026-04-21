@@ -1,0 +1,31 @@
+{
+  "name": "chatapp-server",
+  "version": "1.0.0",
+  "description": "Scalable Real-Time Chat Application Server",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "mongoose": "^8.0.3",
+    "redis": "^4.6.12",
+    "kafkajs": "^2.2.4",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "express-validator": "^7.0.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
